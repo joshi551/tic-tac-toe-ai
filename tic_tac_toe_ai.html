@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tic-Tac-Toe vs Unbeatable AI</title>
+<style>
+  :root{
+    --bg:#1e2430;
+    --cell:#2b3242;
+    --cell-hover:#39435a;
+    --accent:#4fd1c5;
+    --x-color:#4fd1c5;
+    --o-color:#f6ad55;
+    --text:#e6e9ef;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    background:var(--bg);
+    font-family:Arial, Helvetica, sans-serif;
+    color:var(--text);
+  }
+  h1{
+    font-size:22px;
+    letter-spacing:1px;
+    margin-bottom:6px;
+  }
+  #status{
+    font-size:16px;
+    margin-bottom:18px;
+    min-height:22px;
+    color:var(--text);
+  }
+  #board{
+    display:grid;
+    grid-template-columns:repeat(3, 90px);
+    grid-template-rows:repeat(3, 90px);
+    gap:8px;
+  }
+  .cell{
+    background:var(--cell);
+    border:none;
+    border-radius:8px;
+    font-size:40px;
+    font-weight:bold;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:background 0.15s ease;
+  }
+  .cell:hover:not(:disabled){
+    background:var(--cell-hover);
+  }
+  .cell:disabled{
+    cursor:default;
+  }
+  .x{color:var(--x-color);}
+  .o{color:var(--o-color);}
+  #restart{
+    margin-top:20px;
+    padding:10px 22px;
+    font-size:14px;
+    background:var(--accent);
+    color:#12181f;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:bold;
+    letter-spacing:0.5px;
+  }
+  #restart:hover{
+    opacity:0.9;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Tic-Tac-Toe vs Unbeatable AI</h1>
+  <div id="status">Your turn (X)</div>
+  <div id="board"></div>
+  <button id="restart">Restart</button>
+
+<script>
+  const HUMAN = "X";
+  const AI = "O";
+  const EMPTY = "";
+
+  let board = Array(9).fill(EMPTY);
+  let gameOver = false;
+
+  const boardEl = document.getElementById("board");
+  const statusEl = document.getElementById("status");
+  const restartBtn = document.getElementById("restart");
+
+  const winCombos = [
+    [0,1,2],[3,4,5],[6,7,8],   // rows
+    [0,3,6],[1,4,7],[2,5,8],   // columns
+    [0,4,8],[2,4,6]            // diagonals
+  ];
+
+  function buildBoard(){
+    boardEl.innerHTML = "";
+    board.forEach((val, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "cell";
+      btn.textContent = val;
+      if(val === "X") btn.classList.add("x");
+      if(val === "O") btn.classList.add("o");
+      btn.disabled = val !== EMPTY || gameOver;
+      btn.addEventListener("click", () => humanMove(idx));
+      boardEl.appendChild(btn);
+    });
+  }
+
+  function humanMove(idx){
+    if(board[idx] !== EMPTY || gameOver) return;
+
+    board[idx] = HUMAN;
+    buildBoard();
+
+    if(checkWinner(board, HUMAN)){
+      endGame("You win! (shouldn't happen against perfect AI)");
+      return;
+    }
+    if(isFull(board)){
+      endGame("It's a draw!");
+      return;
+    }
+
+    statusEl.textContent = "AI thinking...";
+    setTimeout(aiMove, 300); // slight delay for realism
+  }
+
+  function aiMove(){
+    let bestScore = -Infinity;
+    let bestMove = -1;
+
+    for(let i = 0; i < 9; i++){
+      if(board[i] === EMPTY){
+        board[i] = AI;
+        const score = minimax(board, 0, false);
+        board[i] = EMPTY;
+        if(score > bestScore){
+          bestScore = score;
+          bestMove = i;
+        }
+      }
+    }
+
+    if(bestMove !== -1){
+      board[bestMove] = AI;
+    }
+
+    buildBoard();
+
+    if(checkWinner(board, AI)){
+      endGame("AI wins! Better luck next time.");
+      return;
+    }
+    if(isFull(board)){
+      endGame("It's a draw!");
+      return;
+    }
+
+    statusEl.textContent = "Your turn (X)";
+  }
+
+  // Recursively simulate every possible future game state.
+  // isMaximizing = true  -> AI's simulated turn (wants the highest score)
+  // isMaximizing = false -> Human's simulated turn (assumed optimal,
+  //                         so AI picks the move minimizing its own score)
+  function minimax(b, depth, isMaximizing){
+    if(checkWinner(b, AI)) return 10 - depth;
+    if(checkWinner(b, HUMAN)) return depth - 10;
+    if(isFull(b)) return 0;
+
+    if(isMaximizing){
+      let best = -Infinity;
+      for(let i = 0; i < 9; i++){
+        if(b[i] === EMPTY){
+          b[i] = AI;
+          best = Math.max(best, minimax(b, depth + 1, false));
+          b[i] = EMPTY;
+        }
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for(let i = 0; i < 9; i++){
+        if(b[i] === EMPTY){
+          b[i] = HUMAN;
+          best = Math.min(best, minimax(b, depth + 1, true));
+          b[i] = EMPTY;
+        }
+      }
+      return best;
+    }
+  }
+
+  function checkWinner(b, player){
+    return winCombos.some(combo => combo.every(i => b[i] === player));
+  }
+
+  function isFull(b){
+    return b.every(cell => cell !== EMPTY);
+  }
+
+  function endGame(message){
+    gameOver = true;
+    statusEl.textContent = message;
+    buildBoard();
+  }
+
+  function restart(){
+    board = Array(9).fill(EMPTY);
+    gameOver = false;
+    statusEl.textContent = "Your turn (X)";
+    buildBoard();
+  }
+
+  restartBtn.addEventListener("click", restart);
+
+  buildBoard();
+</script>
+
+</body>
+</html>
